@@ -44,7 +44,9 @@ kubectl apply -f cert-request.yaml
 
 ### Create a OpenTelemetryCollector for logs pipeline
 
-This OpenTelemetryCollector receive logs via syslog protocol (TLS) and export them to OpenSearch. TLS is a requirement fo LogSink (fluentBit)
+This OpenTelemetryCollector receive logs via syslog protocol (TLS) and export them to OpenSearch.
+
+TLS is a requirement for LogSink (fluentBit)
 
 This manifest also create a NodePort service to access the syslog endpoint from outsite the Kube cluster.
 
@@ -52,13 +54,32 @@ This manifest also create a NodePort service to access the syslog endpoint from 
 kubectl apply -f otel-col-syslog.yaml
 ```
 
-### Create a ClusterLogSink
+### Create a ClusterLogSink (incluster)
 
 ClusterLogSink is a CRD to configure embedded fluentbit. This config push log to our newly created syslog receiver.
 
 ```shell
 kubectl apply -f ClusterLogSink.yaml
 ```
+
+### Configure TKGI Monitoring Features on Host
+
+Address and Port from the Node Port
+```shell
+kubectl get svc otelcol-syslog-hosts-svc
+```
+
+Permited Peer == CN
+```shell
+kubectl get certificate syslog-otel | grep commonName
+```
+
+TLS Certificate
+```shell
+kubectl get secret syslog-otel-tls -o json -o=jsonpath="{.data.tls\.crt}" | base64 -d
+```
+
+![Configuration Screenshot](Configure-TKGI-Monitoring-Features-on-Host.png)
 
 
 ## Collect Metrics
@@ -75,5 +96,6 @@ https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid-Integrated-Edition/1.20/
 https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid-Integrated-Edition/1.20/tkgi/GUID-installing-vsphere.html#optional-incluster-monitoring-11
 
 https://github.com/bdereims/pks-prep/blob/master/cluster-log-sink.yaml
+https://knowledge.broadcom.com/external/article/298605/logsinks-troubleshooting-for-tkgi.html
 
 https://github.com/influxdata/telegraf/commits/master/plugins/outputs/opentelemetry/README.md

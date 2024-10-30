@@ -21,29 +21,51 @@ spec:
           username: admin
           password: admin
     receivers:
-      syslog/tls:
+      # First syslog receiver for InCluster Monitorig (FluentBit Sink)
+      syslog/incluster:
         protocol: rfc5424
         tcp:
           listen_address: "0.0.0.0:6514"
           tls:
             cert_file: /tmp/syslog/tls/tls.crt
             key_file: /tmp/syslog/tls/tls.key
+      # Second syslog receiver for Hosts Monitorig (rsyslog from masters)
+      syslog/hosts:
+        protocol: rfc5424
+        tcp:
+          listen_address: "0.0.0.0:6515"
+          tls:
+            cert_file: /tmp/syslog/tls/tls.crt
+            key_file: /tmp/syslog/tls/tls.key
     exporters:
       debug: {}
-      opensearch:
+      # Export InCluster Monitorig (FluentBit Sink) to k8s-incluster index
+      opensearch/incluster:
         http:
           tls:
             insecure_skip_verify: true
           endpoint: https://my-first-cluster:9200
           auth:
             authenticator: basicauth/client
-
+          logs_index: k8s-incluster
+      # Export Hosts Monitorig (rsyslog from masters) to k8s-hosts index
+      opensearch/hosts:
+        http:
+          tls:
+            insecure_skip_verify: true
+          endpoint: https://my-first-cluster:9200
+          auth:
+            authenticator: basicauth/client
+        logs_index: k8s-hosts
     service:
       extensions: [basicauth/client]
       pipelines:
         logs:
-          receivers: [syslog/tls]
-          exporters: [opensearch]
+          receivers: [syslog/incluster]
+          exporters: [opensearch/incluster]
+        logs/in:
+          receivers: [syslog/hosts]
+          exporters: [opensearch/hosts]
           # exporters: [debug, opensearch]
 ---
 # Create NodePort to access endpoint from outsite the cluster (syslog for OpsMan/TKGi)
@@ -51,8 +73,25 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: otelcol-syslog-svc
-  name: otelcol-syslog-svc
+    app: otelcol-syslog-hosts-svc
+  name: otelcol-syslog-hosts-svc
+spec:
+  ports:
+  - name: syslog-6515
+    port: 6515
+    protocol: TCP
+    targetPort: 6515
+  selector:
+    app.kubernetes.io/name: otelcol-syslog-collector
+  type: NodePort
+---
+# Create Service to access syslog/incluster TLS
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: otelcol-syslog-incluster-svc
+  name: otelcol-syslog-incluster-svc
 spec:
   ports:
   - name: syslog-6514
@@ -61,4 +100,3 @@ spec:
     targetPort: 6514
   selector:
     app.kubernetes.io/name: otelcol-syslog-collector
-  type: NodePort

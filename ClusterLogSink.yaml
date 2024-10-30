@@ -5,10 +5,9 @@ metadata:
    name: workload-sink
 spec:
    type: syslog
-   # Using NodePort
-   host: 10.198.13.4
-   port: 30414
+   # Using syslog/incluster Service
+   host: otelcol-syslog-incluster-svc.default
+   port: 6514
    # non-tls endpoint is forbiden
    enable_tls: true
    insecure_skip_verify: true
-
