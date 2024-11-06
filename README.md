@@ -79,6 +79,14 @@ TLS Certificate
 kubectl get secret syslog-otel-tls -o json -o=jsonpath="{.data.tls\.crt}" | base64 -d
 ```
 
+Custom Rsyslog Configuration (optional)
+
+Example to drop worker nodes logs or that are not WARN/ERR
+```
+if ($.instance == "worker") then stop
+if ($syslogseverity-text != "err" or $syslogseverity-text != "warn") then stop
+```
+
 ![Configuration Screenshot](Configure-TKGI-Monitoring-Features-on-Host.png)
 
 
@@ -91,7 +99,11 @@ FIXME
 
 https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/syslogreceiver
 
+https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/filterprocessor/README.md
+https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
+
 https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid-Integrated-Edition/1.20/tkgi/GUID-installing-vsphere.html#optional-host-monitoring-10
+https://github.com/cloudfoundry/syslog-release/blob/main/examples/example-custom-rules.md
 
 https://docs.vmware.com/en/VMware-Tanzu-Kubernetes-Grid-Integrated-Edition/1.20/tkgi/GUID-installing-vsphere.html#optional-incluster-monitoring-11
 

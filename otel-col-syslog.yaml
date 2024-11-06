@@ -38,7 +38,10 @@ spec:
             cert_file: /tmp/syslog/tls/tls.crt
             key_file: /tmp/syslog/tls/tls.key
     exporters:
-      debug: {}
+      debug:
+        sampling_initial: 5
+        sampling_thereafter: 200
+        verbosity: detailed
       # Export InCluster Monitorig (FluentBit Sink) to k8s-incluster index
       opensearch/incluster:
         http:
@@ -47,7 +50,7 @@ spec:
           endpoint: https://my-first-cluster:9200
           auth:
             authenticator: basicauth/client
-          logs_index: k8s-incluster
+        logs_index: k8s-incluster
       # Export Hosts Monitorig (rsyslog from masters) to k8s-hosts index
       opensearch/hosts:
         http:
@@ -57,16 +60,24 @@ spec:
           auth:
             authenticator: basicauth/client
         logs_index: k8s-hosts
+    processors:
+      # Example to drop logs from worker nodes OR that are less than WARN
+      filter/ottl:
+        logs:
+          log_record:
+          - IsMatch(attributes["structured_data"]["instance@47450"]["group"], ".*worker.*")
+          - severity_number < SEVERITY_NUMBER_WARN
     service:
       extensions: [basicauth/client]
       pipelines:
-        logs:
+        logs/incluster:
           receivers: [syslog/incluster]
           exporters: [opensearch/incluster]
-        logs/in:
+        logs/hosts:
           receivers: [syslog/hosts]
+          processors: [filter/ottl]
           exporters: [opensearch/hosts]
-          # exporters: [debug, opensearch]
+          # exporters: [debug, opensearch/hosts]
 ---
 # Create NodePort to access endpoint from outsite the cluster (syslog for OpsMan/TKGi)
 apiVersion: v1
